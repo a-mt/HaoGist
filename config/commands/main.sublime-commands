@@ -14,10 +14,13 @@
 
     {"caption": "HaoGist: -"},
 
+    {"caption": "HaoGist: Create Public Gist", "command": "create_gist", "args": {"public": true}},
+    {"caption": "HaoGist: Create Private Gist", "command": "create_gist", "args": {"public": false}},
+
     {"caption": "HaoGist: Add File To Gist", "command": "choose_gist", 
         "args": {
-            "callback_command": "add_file_to_gist",
-            "include_files": false
+            "include_files": false,
+            "callback_command": "add_file_to_gist"
         }
     },
 
@@ -39,32 +42,21 @@
             "callback_command": "delete_exist_gist"
         }
     },
+    {"caption": "HaoGist: Current Gist - Push", "command": "update_gist"},
+    {"caption": "HaoGist: Current Gist - Pull", "command": "refresh_gist"},
+    {"caption": "HaoGist: Current Gist - Rename File", "command": "rename_gist"},
+    {"caption": "HaoGist: Current Gist - Update Description", "command": "update_gist_description"},
+    {"caption": "HaoGist: Current Gist - Delete", "command": "delete_gist"},
+    {"caption": "HaoGist: Current Gist - Open in Browser", "command": "open_current_gist_in_browser"},
 
-    {"caption": "HaoGist: Create Public Gist", "command": "create_gist", "args": {"public": true}},
-    {"caption": "HaoGist: Create Private Gist", "command": "create_gist", "args": {"public": false}},
-    {"caption": "HaoGist: Update Gist", "command": "update_gist"},
-    {"caption": "HaoGist: Refresh Gist", "command": "refresh_gist"},
-    {"caption": "HaoGist: Rename Gist", "command": "rename_gist"},
-    {"caption": "HaoGist: Update Gist Description", "command": "update_gist_description"},
-    {"caption": "HaoGist: Delete Current Gist", "command": "delete_gist"},
     {"caption": "HaoGist: Clear Gist Cache", "command": "clear_gist_cache"},
     {"caption": "HaoGist: Reload Gist Cache", "command": "choose_gist", "args": {"read_cache": false}},
-    {"caption": "HaoGist: Open Current Gist in Browser", "command": "open_current_gist_in_browser"},
     {"caption": "HaoGist: Open Gist in Browser", "command": "choose_gist", 
         "args": {
             "callback_command": "open_gist_in_browser"
         }
     },
+    {"caption": "HaoGist: Pull All Gist", "command": "pull_all_gist"},
     {"caption": "HaoGist: About", "command": "about_hao_gist"},
-    {"caption": "HaoGist: Release Note", "command": "release_note"},
-    {"caption": "HaoGist: Settings – Default", "command": "open_file", 
-        "args": {
-            "file": "${packages}/HaoGist/config/settings/HaoGist.sublime-settings"
-        }
-    },
-    {"caption": "HaoGist: Settings – User", "command": "open_file", 
-        "args": {
-            "file": "${packages}/User/HaoGist.sublime-settings"
-        }
-    }
+    {"caption": "HaoGist: Release Note", "command": "release_note"}
 ]

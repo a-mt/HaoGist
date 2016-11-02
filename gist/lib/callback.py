@@ -1,6 +1,7 @@
 import os
 import json
 import sublime
+import subprocess
 
 from . import util
 from .panel import Printer
@@ -20,7 +21,7 @@ def open_gist(res, options):
     filename = options["fileName"]
     settings = util.get_settings()
 
-    workspace = settings["workspace"]
+    workspace = os.path.join(settings["workspace"], options["gist"]["id"])
     if not os.path.exists(workspace):
         os.makedirs(workspace)
 
@@ -33,13 +34,13 @@ def open_gist(res, options):
     view.settings().set("options", options)
 
 def delete_gist(res, options):
+    settings = util.get_settings()
+
     # When delete current open gist, we need to delete the gist
     # and close the open view
     if "fileFullName" in options:
         file_full_name = options["fileFullName"]
         base, filename = os.path.split(file_full_name)
-
-        settings = util.get_settings()
 
         # Close corresponding view by file full name
         util.close_view_by_filename(file_full_name)
@@ -47,8 +48,22 @@ def delete_gist(res, options):
         # Remove file name
         os.remove(file_full_name)
 
+        # Remove enclosing dir
+        _dir = os.path.dirname(file_full_name)
+        if _dir != settings["workspace"]:
+            try:
+                os.rmdir(_dir)
+            except OSError as ex:
+                if ex.errno == errno.ENOTEMPTY:
+                    print("directory not empty")
+
         show_message("%s delete succeed" % filename)
     else:
+        # Remove full gist
+        _dir = os.path.join(settings["workspace"], options["gist_id"])
+        if _dir != settings["workspace"] and os.path.isdir(_dir):
+            subprocess.check_call(['rm', '-rf', _dir])
+
         filename = options["fileName"]
         show_message("Gist %s is delete successfully" % filename)
 
@@ -64,14 +79,19 @@ def create_gist(res, options):
 
     # Get settings
     settings = util.get_settings()
+    gist     = res.json()
 
     # Write file to workspace
-    file_full_name = settings["workspace"] + "/" + filename
+    workspace      = settings["workspace"] + "/" + gist["id"]
+    file_full_name = workspace + "/" + filename
+
+    if not os.path.exists(workspace):
+        os.makedirs(workspace)
+
     with open(file_full_name, "wb") as fp:
         fp.write(content.encode("utf-8"))
 
     # Open created gist
-    gist = res.json()
     view = sublime.active_window().open_file(file_full_name)
     view.settings().set("options", {
         "gist": gist,

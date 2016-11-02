@@ -2,6 +2,8 @@ import sublime, sublime_plugin
 import os
 import json
 import threading
+import datetime
+import subprocess
 
 from .gist.api import GistApi
 from .gist.api import GIST_BASE_URL as base_url
@@ -92,14 +94,14 @@ class ChooseGist(sublime_plugin.WindowCommand):
                         description = "gist:%s" % _gist["id"]
 
                     files_number = len(_gist["files"])
-                    if files_number > 1:
-                        self.items.append(description)
+                    # if files_number > 1:
+                    self.items.append(description)
 
                     # Add gist files to items
                     gist_items_property = []
                     for key, value in _gist["files"].items():
-                        if files_number > 1:
-                            key = "%s%s" % (" " * 4, key)
+                        # if files_number > 1:
+                        key = "%s%s" % (" " * 4, key)
                         self.items.append(key)
                         self.items_property[key] = [{
                             "fileName": key.strip(),
@@ -116,6 +118,10 @@ class ChooseGist(sublime_plugin.WindowCommand):
 
     def on_done(self, index):
         if index == -1: return
+
+        if not self.include_files:
+            self.window.run_command(self.callback_command, {"options": self.items_property[self.items[index]]})
+            return
 
         for item in self.items_property[self.items[index]]:
             self.window.run_command(self.callback_command, {
@@ -159,7 +165,8 @@ class DeleteExistGist(sublime_plugin.WindowCommand):
         thread.start()
         ThreadProgress(api, thread, 'Deleting Gist %s' % filename, 
             callback.delete_gist, _callback_options={
-                "fileName": filename
+                "fileName": filename,
+                "gist_id": _gist["id"]
             }
         )
 
@@ -226,6 +233,20 @@ class AddFileToGist(sublime_plugin.TextCommand):
         message = "Input fileName to be added into %s" % gist_description
         sublime.active_window().show_input_panel(message, 
             "", self.on_input_name, None, None)
+
+    def on_done(self, index):
+        if index == -1: return
+        #fix
+        if not self.include_files:
+            self.window.run_command(self.callback_command, {"options": self.items_property[self.items[index]]})
+            return
+        #
+        for item in self.items_property[self.items[index]]:
+            self.window.run_command(
+                self.callback_command, {
+                    "options": item
+                }
+            )
 
     def on_input_name(self, filename):
         if not filename:
@@ -515,3 +536,91 @@ class AboutHaoGist(sublime_plugin.WindowCommand):
 
     def run(self):
         util.open_with_browser("https://github.com/xjsender/HaoGist")
+
+
+class GistPull(object):
+
+    def __init__(self):
+        self.res = None
+        self.status_code = 200
+        self.settings = util.get_settings()
+
+    def pull(self, _gists):
+
+        # Retrieve all the gists
+        c = 0
+        ids = {}
+        for _gist in _gists:
+            ids[_gist["id"]] = 1
+
+            # Local file exists ?
+            workspace = os.path.join(self.settings["workspace"], _gist["id"])
+            if os.path.exists(workspace):
+
+                # Local file up to date ?
+                _dateServer = datetime.datetime.strptime(_gist["updated_at"], '%Y-%m-%dT%H:%M:%SZ')
+                _dateLocal  = datetime.datetime.utcfromtimestamp(os.path.getmtime(workspace))
+
+                if(_dateServer < _dateLocal):
+                    continue
+                subprocess.check_call(['rm', '-rf', workspace])
+
+            # Download gist locally
+            try:
+                subprocess.check_call(['git', 'clone', _gist['git_pull_url'], '--branch', 'master', '--single-branch', '--depth', '1', workspace])
+                c = c + 1
+                subprocess.check_call(['rm', '-rf', workspace + '/.git'])
+            except subprocess.CalledProcessError as ex:
+                Printer.get("gist_log").write("Could not clone : " + ex)
+
+        # Delete gists that don't exist anymore
+        workspace = self.settings["workspace"]
+        d = 0
+        for file in os.listdir(workspace):
+            if file.startswith('.'):
+                continue
+
+            if(not file in ids):
+                subprocess.check_call(['rm', '-rf', os.path.join(workspace, file)])
+                d = d + 1
+
+        self.update = c
+        self.delete = d
+        self.res = self
+        return self
+
+    def done(self, res, options={}):
+        msg = 'Update : %d' % res.update
+        if res.delete > 0:
+            msg = msg + ' / Delete : %d' % res.delete
+
+        sublime.status_message(msg)
+
+class PullAllGist(sublime_plugin.WindowCommand):
+    def run(self):
+        # Retrieve gists from Server
+        settings = util.get_settings()
+        api      = GistApi(settings["token"])
+        thread   = threading.Thread(target=api.list)
+        thread.start()
+        ThreadProgress(api, thread, 'List All Gist', 
+            self.start, _callback_options={}
+        )
+
+    def start(self, res, options={}):
+        # Keep the gists to cache
+        if not isinstance(res, list): 
+            _gists = res.json()
+        else:
+            _gists = res
+        _gists = sorted(_gists, key=lambda k: k['updated_at'], reverse=True)
+        util.add_gists_to_cache(_gists)
+
+        # Start process
+        api    = GistPull()
+        thread = threading.Thread(target=api.pull, args=(_gists, ))
+        thread.start()
+
+        ThreadProgress(api, thread, 'Pull Gists (%d)' % len(_gists), 
+            api.done, _callback_options={}
+        )

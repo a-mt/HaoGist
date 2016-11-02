@@ -58,8 +58,8 @@
 
             {"caption": "-"},
 
-            {"caption": "Update Gist", "command": "update_gist"},
-            {"caption": "Refresh Gist", "command": "refresh_gist"},
+            {"caption": "Push Gist", "command": "update_gist"},
+            {"caption": "Pull Gist", "command": "refresh_gist"},
             {"caption": "Rename Gist", "command": "rename_gist"},
             {"caption": "Delete Gist", "command": "delete_gist"},
             {"caption": "Update Gist Description", "command": "update_gist_description"},
